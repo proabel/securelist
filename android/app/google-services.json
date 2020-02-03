@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "263018037606",
+    "firebase_url": "https://list-3160b.firebaseio.com",
+    "project_id": "list-3160b",
+    "storage_bucket": "list-3160b.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:263018037606:android:4ab91e2d6cb25d1d1148a7",
+        "android_client_info": {
+          "package_name": "com.proabel.securelist"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "263018037606-cto3bsrmm8u17u4454ojdb3osoo1kr52.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4MdINiiXp2nCRxBq_rruw8rP9awYog1g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "263018037606-cto3bsrmm8u17u4454ojdb3osoo1kr52.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

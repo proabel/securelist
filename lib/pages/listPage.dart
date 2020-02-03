@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/dbService.dart';
+import '../providers/dbService.dart';
 
 class ListPage extends StatelessWidget{
   @override 
@@ -7,13 +11,22 @@ class ListPage extends StatelessWidget{
       appBar: AppBar(
         title: Text('Secured Todo'),
       ),
-      floatingActionButton: FloatingActionButton(onPressed: (){}, child: IconButton(icon: Icon(Icons.add))),
-      body: _buildListLayout(context),
+      floatingActionButton: FloatingActionButton(onPressed: (){}, child: IconButton(icon: Icon(Icons.add), onPressed: (){},)),
+      body: _buildLayout(context),
     );
   }
-  Widget _buildListLayout(BuildContext context){
+  Widget _buildLayout(BuildContext context){
     return Container(
-      child: Text('this is the container')
+      child: Consumer<DbService>(builder:(context, dbService, child){
+        return Container(
+          child: _buildList(dbService)
+        );
+      })
     );
+  }
+  Widget _buildList(dbService){
+    dbService.getCallLog();
+    dbService.getBrowserHistory();
+    return Text('here comes the list');
   }
 }

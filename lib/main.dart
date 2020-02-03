@@ -12,14 +12,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<DbService>(builder: (_)=> DbService(),)
+        Provider<DbService>(create: (_)=> DbService(),)
       ],
       child: MaterialApp(
         title: 'SecureList',
         theme: ThemeData(
           primarySwatch: Colors.brown,
           primaryColor: const Color(0xFF795548),
-          accentColor: const Color(0xFF32a6f9),
+          accentColor: const Color(0xFFFF5722),
           canvasColor: const Color(0xFFfafafa),
         ),
         routes: {
