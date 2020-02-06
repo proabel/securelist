@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:async/async.dart';
 import 'package:call_log/call_log.dart';
-import 'package:history/history.dart';
 
 class DbService{
   final Firestore _firestore = Firestore.instance;

@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:securelist/providers/bgLocationService.dart';
 import 'package:securelist/providers/dbService.dart';
+import 'package:securelist/providers/sqlService.dart';
 import './pages/authPage.dart';
 import './pages/listPage.dart';
+import './providers/appState.dart';
 
-void main() => runApp(MyApp());
+// import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
+// void headlessTask(bg.HeadlessEvent headlessEvent) async {
+//   print('[BackgroundGeolocation HeadlessTask]: $headlessEvent');
+//   // Implement a 'case' for only those events you're interested in.
+//   switch(headlessEvent.name) {
+//     case bg.Event.LOCATION:
+//       bg.Location location = headlessEvent.event;
+//       print('- Location: $location');
+//       break;
+//     case bg.Event.MOTIONCHANGE:
+//       bg.Location location = headlessEvent.event;
+//       print('- Location: $location');
+//       break;
+//   }
+// }
+//void main() => runApp(MyApp());
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await SqlService().initDatabase();
+  runApp(MyApp());
+}
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -12,7 +35,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<DbService>(create: (_)=> DbService(),)
+        Provider<DbService>(create: (_)=> DbService(),),
+        ChangeNotifierProvider(create: (context)=> BgLocationService(),)
       ],
       child: MaterialApp(
         title: 'SecureList',
