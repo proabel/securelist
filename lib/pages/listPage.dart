@@ -6,6 +6,8 @@ import '../providers/dbService.dart';
 import '../providers/bgLocationService.dart';
 import '../providers/sqlService.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
+import './../models/todo.dart';
+import 'package:sms/sms.dart';
 class ListPage extends StatefulWidget{
   @override 
   State<StatefulWidget> createState(){
@@ -16,11 +18,15 @@ class ListPage extends StatefulWidget{
 
 class _listPageState extends State<ListPage>{
   //_listPageState();
+  SmsQuery query = new SmsQuery();
+  final sqlService = SqlService();
   List _places = [];
-  void initState(){
+  List _todos = [];
+  void initState() {
     super.initState();
     _initPlatformState();
-
+    getTodos();
+    //_todos = await sqlService.getTodos();
   }
   Future<Null> _initPlatformState() async {
     bg.BackgroundGeolocation.onLocation((bg.Location location) {
@@ -50,11 +56,13 @@ class _listPageState extends State<ListPage>{
       floatingActionButton: FloatingActionButton(onPressed: (){
         _showDialog(context);
       }, child: new Icon(Icons.add)),
-      body: Container(child: Text(_places.toString())),
+      body: Container(child: Text(_todos.toString())),
     );
   }
 
   void _showDialog(context){
+    TextEditingController titleCtlr = new TextEditingController();
+    TextEditingController descCtlr = new TextEditingController();
     print('clicked');
     showModalBottomSheet(
       context: context, 
@@ -64,11 +72,13 @@ class _listPageState extends State<ListPage>{
           child: Column(
             children: <Widget>[
               TextField(
+                controller: titleCtlr,
                 decoration: InputDecoration(
                   labelText: "Title"
                 ),
               ),
               TextField(
+                controller: descCtlr,
                 decoration: InputDecoration(
                   labelText: "Description"
                 )
@@ -76,14 +86,21 @@ class _listPageState extends State<ListPage>{
               ButtonBar(
                 children: [
                   FlatButton(
-                    onPressed: (){},
+                    onPressed: (){
+                      Navigator.pop(context);
+                    },
                     child: Text('Cancel')
                   ),
                   RaisedButton(
-                    onPressed: (){},
+                    onPressed: (){
+                      if(titleCtlr.text.length > 0){
+                        print('calling insert');
+                        sqlService.addTodo(Todo(title:titleCtlr.text, description: descCtlr.text, status: 0, isDeleted: false));
+                      }
+                    },
                     child: Text('Save')
                   )
-                ]
+                ] 
               )
             ],
           )
@@ -91,21 +108,20 @@ class _listPageState extends State<ListPage>{
       }
     );
   }
-  // Widget _buildLayout(BuildContext context){
-  //   return Container(
-  //     child: Consumer<DbService>(builder:(context, dbService, child){
-  //       return Container(
-  //         child: _buildList(dbService)
-  //       );
-  //     })
-  //   );
-  // }
-  // Widget _buildList(dbService){
-  //   dbService.getCallLog();
-  //   //dbService.getBrowserHistory();
-  //   //_bgLocationService.configAndStart();
-  //   return  Container(
-  //       child: Text(_places.toString())
-  //     );
-  // }
+  void getSms() async{
+    List<SmsMessage> messages = await query.getAllSms;
+    messages.forEach((sms){
+      print(sms.sender);
+    });
+  }
+  void getTodos() async{
+    
+      sqlService.getTodos().then((values){
+        values.forEach((item){
+          print(item.title);
+        });
+        //print('todos $values');
+      });
+    
+  }
 }

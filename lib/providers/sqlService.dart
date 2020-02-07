@@ -3,17 +3,18 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:io';
 import './../models/authQA.dart';
+import './../models/todo.dart';
 import './../providers/appState.dart';
 
 Database db;
 class SqlService {
 
-  static const authQATable = 'authQAs';
-  static const id = 'id';
-  static const type = 'type';
-  static const question = 'question';
-  static const answer = 'answer';
-  static const isDeleted = 'isDeleted';
+  // static const authQATable = 'authQAs';
+  // static const id = 'id';
+  // static const type = 'type';
+  // static const question = 'question';
+  // static const answer = 'answer';
+  // static const isDeleted = 'isDeleted';
 
   static void databaseLog(String functionName, String sql,
       [List<Map<String, dynamic>> selectQueryResult, int insertAndUpdateQueryResult, List<dynamic> params]) {
@@ -29,17 +30,26 @@ class SqlService {
     }
   }
 
-  Future<void> createAuthQAsTable(Database db) async {
-    final todoSql = '''CREATE TABLE $authQATable
+  Future<void> createTables(Database db) async {
+    final createQATable = '''CREATE TABLE authQAs
     (
-      $id INTEGER PRIMARY KEY,
-      $type INTEGER,
-      $question TEXT,
-      $answer TEXT,
-      $isDeleted BIT NOT NULL
+      id INTEGER PRIMARY KEY autoincrement,
+      type INTEGER,
+      question TEXT,
+      answer TEXT,
+      isDeleted BIT NOT NULL
+    )''';
+    final createToDoTable = '''CREATE TABLE todos
+    (
+      id INTEGER PRIMARY KEY autoincrement,
+      title TEXT,
+      description TEXT,
+      status INTEGER,
+      isDeleted BIT NOT NULL
     )''';
 
-    await db.execute(todoSql);
+    await db.execute(createQATable).then((value){print('created table authQAs');});
+    await db.execute(createToDoTable).then((value){print('created table todos');});
   }
 
   Future<String> getDatabasePath(String dbName) async {
@@ -62,50 +72,64 @@ class SqlService {
   }
 
   Future<void> onCreate(Database db, int version) async {
-    await createAuthQAsTable(db);
+    await createTables(db);
   }
 
-  static Future<List> getAllTodos() async {
-    final sql = '''SELECT * FROM ${authQATable}
-    WHERE ${isDeleted} = 0''';
+  // static Future<List> getQAs() async {
+  //   final sql = '''SELECT * FROM authQAs
+  //   WHERE isDeleted = 0''';
+  //   final data = await db.rawQuery(sql);
+  //   List qas = List();
+
+  //   for (final node in data) {
+  //     final todo = AuthQA.fromJson(node);
+  //     qas.add(todo);
+  //   }
+  //   return qas;
+  // }
+
+  // static Future<void> addQA(AuthQA authQA) async {
+  //   final sql = '''INSERT INTO authQAs
+  //   (
+  //     id,
+  //     type,
+  //     question,
+  //     answer,
+  //     isDeleted
+  //   )
+  //   VALUES (?,?,?,?,?)''';
+  //   List<dynamic> params = [authQA.id, authQA.type, authQA.question, authQA.answer, authQA.isDeleted ? 1 : 0];
+  //   final result = await db.rawInsert(sql, params);
+  //   databaseLog('Add qa', sql, null, result, params);
+  // }
+
+  Future<List> getTodos() async {
+    final sql = '''SELECT * FROM todos
+    WHERE isDeleted = 0''';
     final data = await db.rawQuery(sql);
-    List qas = List();
+    List todos = List();
 
     for (final node in data) {
-      final todo = AuthQA.fromJson(node);
-      qas.add(todo);
+      final todo = Todo.fromJson(node);
+      todos.add(todo);
     }
-    return qas;
+    return todos;
   }
 
-  static Future<void> addTodo(AuthQA authQA) async {
-    /*final sql = '''INSERT INTO ${DatabaseCreator.todoTable}
+  Future<void> addTodo(Todo todo) async {
+    print('init insert');
+    final sql = '''INSERT INTO todos
     (
-      ${DatabaseCreator.id},
-      ${DatabaseCreator.name},
-      ${DatabaseCreator.info},
-      ${DatabaseCreator.isDeleted}
-    )
-    VALUES 
-    (
-      ${todo.id},
-      "${todo.name}",
-      "${todo.info}",
-      ${todo.isDeleted ? 1 : 0}
-    )''';*/
-
-    final sql = '''INSERT INTO ${authQATable}
-    (
-      ${id},
-      ${type},
-      ${question},
-      ${answer},
-      ${isDeleted}
+      id,
+      title,
+      description,
+      status,
+      isDeleted
     )
     VALUES (?,?,?,?,?)''';
-    List<dynamic> params = [authQA.id, authQA.type, authQA.question, authQA.answer, authQA.isDeleted ? 1 : 0];
+    List<dynamic> params = [todo.id, todo.title, todo.description, todo.status, todo.isDeleted ? 1 : 0];
     final result = await db.rawInsert(sql, params);
+    print(result);
     databaseLog('Add todo', sql, null, result, params);
   }
-
 }
