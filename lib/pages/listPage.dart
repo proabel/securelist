@@ -56,10 +56,34 @@ class _listPageState extends State<ListPage>{
       floatingActionButton: FloatingActionButton(onPressed: (){
         _showDialog(context);
       }, child: new Icon(Icons.add)),
-      body: Container(child: Text(_todos.toString())),
+      body: _buildLayout(context)
     );
   }
 
+  _buildLayout(context){
+    return Container(
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: _todos.length,
+        itemBuilder: (context, index){
+          return  Card(
+            child:ListTile(
+            title: GestureDetector( 
+              onDoubleTap: (){
+
+              },
+              child: Text(_todos[index].title)
+            ),
+            trailing: GestureDetector(
+              onTap: (){
+
+              },
+              child: Icon(Icons.more_vert)
+            ),
+          ));
+      })
+    );
+  }
   void _showDialog(context){
     TextEditingController titleCtlr = new TextEditingController();
     TextEditingController descCtlr = new TextEditingController();
@@ -95,7 +119,11 @@ class _listPageState extends State<ListPage>{
                     onPressed: (){
                       if(titleCtlr.text.length > 0){
                         print('calling insert');
-                        sqlService.addTodo(Todo(title:titleCtlr.text, description: descCtlr.text, status: 0, isDeleted: false));
+                        sqlService.addTodo(Todo(title:titleCtlr.text, description: descCtlr.text, status: 0, isDeleted: false)).then((value){
+                          print('got returned');
+                          getTodos();
+                          Navigator.pop(context);
+                        });
                       }
                     },
                     child: Text('Save')
@@ -118,7 +146,10 @@ class _listPageState extends State<ListPage>{
     
       sqlService.getTodos().then((values){
         values.forEach((item){
-          print(item.title);
+          setState(() {
+            _todos = values;
+          });
+          //print(item.title);
         });
         //print('todos $values');
       });
