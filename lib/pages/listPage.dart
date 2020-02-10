@@ -5,9 +5,7 @@ import 'package:securelist/providers/bgLocationService.dart';
 import '../providers/dbService.dart';
 import '../providers/bgLocationService.dart';
 import '../providers/sqlService.dart';
-import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import './../models/todo.dart';
-import 'package:sms/sms.dart';
 class ListPage extends StatefulWidget{
   @override 
   State<StatefulWidget> createState(){
@@ -18,32 +16,18 @@ class ListPage extends StatefulWidget{
 
 class _listPageState extends State<ListPage>{
   //_listPageState();
-  SmsQuery query = new SmsQuery();
+  
   final sqlService = SqlService();
   List _places = [];
   List _todos = [];
   void initState() {
     super.initState();
-    _initPlatformState();
+    //_initPlatformState();
     getTodos();
+    
     //_todos = await sqlService.getTodos();
   }
-  Future<Null> _initPlatformState() async {
-    bg.BackgroundGeolocation.onLocation((bg.Location location) {
-      print('[location] - $location');
-    });
-
-    // Fired whenever the plugin changes motion-state (stationary->moving and vice-versa)
-    bg.BackgroundGeolocation.onMotionChange((bg.Location location) {
-      print('[motionchange] - $location');
-    });
-    
-    bg.BackgroundGeolocation.ready(bg.Config(
-      enableHeadless: true,    
-      stopOnTerminate: false,  
-      startOnBoot: true
-    ));
-  }
+  
   
   @override 
   Widget build(BuildContext context){
@@ -52,37 +36,81 @@ class _listPageState extends State<ListPage>{
     return Scaffold(
       appBar: AppBar(
         title: Text('Secured Todo'),
+        actions: <Widget>[
+          GestureDetector(
+            onTap: (){
+              //appState.setAuth(false);
+              Navigator.pushReplacementNamed(context, '/question');
+            },
+            child: Icon(Icons.power_settings_new)
+          )
+        ],
       ),
       floatingActionButton: FloatingActionButton(onPressed: (){
         _showDialog(context);
       }, child: new Icon(Icons.add)),
-      body: _buildLayout(context)
+      body: _buildLayout(context),
+      
     );
   }
 
   _buildLayout(context){
-    return Container(
-      child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: _todos.length,
-        itemBuilder: (context, index){
-          return  Card(
-            child:ListTile(
-            title: GestureDetector( 
-              onDoubleTap: (){
-
-              },
-              child: Text(_todos[index].title)
-            ),
-            trailing: GestureDetector(
-              onTap: (){
-
-              },
-              child: Icon(Icons.more_vert)
-            ),
-          ));
-      })
-    );
+    if(_todos.length > 0){
+      return Container(
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: _todos.length,
+          itemBuilder: (context, index){
+            return  Card(
+              child:ListTile(
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                Flexible(
+                  child: GestureDetector( 
+                    onTap: (){
+                      _showTodo(context, _todos[index]);
+                    },
+                    child: Text(_todos[index].title)
+                  ),
+                ),
+                Flexible(child: _todos[index].status == 1 ? Icon(Icons.done_all, color: Colors.green) : SizedBox.shrink())
+              ],),
+              trailing: PopupMenuButton(
+                onSelected: (value){
+                  if(value == 'delete'){
+                    sqlService.deleteTodo(_todos[index].id).then((value){
+                      getTodos();
+                      //Navigator.pushReplacementNamed(context, '/');
+                    });
+                  }else if(value == 'complete'){
+                    _changeStatus(context, _todos[index], 'complete');
+                  }else if(value == 'incomplete'){
+                    _changeStatus(context, _todos[index], 'incomplete');
+                  }
+                },
+                icon: Icon(Icons.more_vert),
+                itemBuilder: (context)=>[
+                  PopupMenuItem(
+                    value: _todos[index].status == 0 ? 'complete' : 'incomplete',
+                    child: _todos[index].status == 0 ? Text('done') : Text('undone')
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text('delete'),
+                  )
+                ]
+              )
+            ));
+        })
+      );
+    }
+    else{
+      return Container(
+        padding: EdgeInsets.all(10),
+        child: Text('Add some todos to the list'),
+      );
+    }
   }
   void _showDialog(context){
     TextEditingController titleCtlr = new TextEditingController();
@@ -107,6 +135,7 @@ class _listPageState extends State<ListPage>{
                   labelText: "Description"
                 )
               ),
+              SizedBox(height: 50,),
               ButtonBar(
                 children: [
                   FlatButton(
@@ -116,6 +145,7 @@ class _listPageState extends State<ListPage>{
                     child: Text('Cancel')
                   ),
                   RaisedButton(
+                    color: Theme.of(context).primaryColor,
                     onPressed: (){
                       if(titleCtlr.text.length > 0){
                         print('calling insert');
@@ -123,6 +153,7 @@ class _listPageState extends State<ListPage>{
                           print('got returned');
                           getTodos();
                           Navigator.pop(context);
+                          //Navigator.pushNamed(context, '/');
                         });
                       }
                     },
@@ -136,11 +167,35 @@ class _listPageState extends State<ListPage>{
       }
     );
   }
-  void getSms() async{
-    List<SmsMessage> messages = await query.getAllSms;
-    messages.forEach((sms){
-      print(sms.sender);
-    });
+  void _showTodo(context, todo){
+    showModalBottomSheet(
+      context: context, 
+      builder: (BuildContext context){
+        return Container(
+          padding: EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(todo.title, style: TextStyle(fontSize: 18),),
+              SizedBox(height: 10,),
+              Text(todo.description, style: TextStyle(fontSize: 14),),
+              SizedBox(height: 50,),
+              ButtonBar(
+                children: [
+                  RaisedButton(
+                    color: Theme.of(context).primaryColor,
+                    onPressed: (){
+                      Navigator.pop(context);
+                    },
+                    child: Text('close')
+                  ),
+                ] 
+              )
+            ],
+          )
+        );
+      }
+    );
   }
   void getTodos() async{
     
@@ -154,5 +209,18 @@ class _listPageState extends State<ListPage>{
         //print('todos $values');
       });
     
+  }
+  void _changeStatus(context,Todo todo, status){
+    if(status == 'complete'){
+      todo.status = 1;
+      sqlService.updateTodo(todo).then((value){
+        getTodos();
+      });
+    }else{
+      todo.status = 0;
+      sqlService.updateTodo(todo).then((value){
+        getTodos();
+      });
+    }
   }
 }

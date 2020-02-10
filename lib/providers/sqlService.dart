@@ -132,4 +132,13 @@ class SqlService {
     print(result);
     databaseLog('Add todo', sql, null, result, params);
   }
+  Future updateTodo(Todo todo) async{
+    final sql = '''UPDATE todos SET status = ? WHERE id = ?''';
+    final result = await db.rawUpdate(sql, [todo.status, todo.id]);
+  }
+
+  Future deleteTodo(id) async {
+    final result = await db.rawDelete('DELETE FROM todos WHERE id = ?', [id]);
+    return result;
+  }
 }

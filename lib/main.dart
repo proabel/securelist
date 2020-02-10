@@ -5,6 +5,7 @@ import 'package:securelist/providers/dbService.dart';
 import 'package:securelist/providers/sqlService.dart';
 import './pages/authPage.dart';
 import './pages/listPage.dart';
+import './pages/questionPage.dart';
 import './providers/appState.dart';
 
 // import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<DbService>(create: (_)=> DbService(),),
+        ChangeNotifierProvider<AppState>(create: (context)=> AppState(),),
         ChangeNotifierProvider(create: (context)=> BgLocationService(),)
       ],
       child: MaterialApp(
@@ -47,8 +49,9 @@ class MyApp extends StatelessWidget {
           canvasColor: const Color(0xFFfafafa),
         ),
         routes: {
-          '/': (context) => ListPage(),
-          '/list': (context) => ListPage()
+          '/': (context) => QuestionPage(),
+          '/list': (context) => ListPage(),
+          '/question': (context) => QuestionPage()
         }
       ),
     );
