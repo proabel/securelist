@@ -36,7 +36,7 @@ class SqlService {
       id INTEGER PRIMARY KEY autoincrement,
       type INTEGER,
       question TEXT,
-      answer TEXT,
+      options TEXT,
       isDeleted BIT NOT NULL
     )''';
     final createToDoTable = '''CREATE TABLE todos
@@ -68,40 +68,55 @@ class SqlService {
   Future<void> initDatabase() async {
     final path = await getDatabasePath('secureLocalDb');
     db = await openDatabase(path, version: 1, onCreate: onCreate);
-    print(db);
+    //print(db);
   }
 
   Future<void> onCreate(Database db, int version) async {
     await createTables(db);
   }
 
-  // static Future<List> getQAs() async {
-  //   final sql = '''SELECT * FROM authQAs
-  //   WHERE isDeleted = 0''';
-  //   final data = await db.rawQuery(sql);
-  //   List qas = List();
+  Future<List> getQAs() async {
+    final sql = '''SELECT * FROM authQAs
+    WHERE isDeleted = 0''';
+    final data = await db.rawQuery(sql);
+    List qas = List();
 
-  //   for (final node in data) {
-  //     final todo = AuthQA.fromJson(node);
-  //     qas.add(todo);
-  //   }
-  //   return qas;
-  // }
+    for (final node in data) {
+      final todo = AuthQA.fromJson(node);
+      qas.add(todo);
+    }
+    return qas;
+  }
 
-  // static Future<void> addQA(AuthQA authQA) async {
-  //   final sql = '''INSERT INTO authQAs
-  //   (
-  //     id,
-  //     type,
-  //     question,
-  //     answer,
-  //     isDeleted
-  //   )
-  //   VALUES (?,?,?,?,?)''';
-  //   List<dynamic> params = [authQA.id, authQA.type, authQA.question, authQA.answer, authQA.isDeleted ? 1 : 0];
-  //   final result = await db.rawInsert(sql, params);
-  //   databaseLog('Add qa', sql, null, result, params);
-  // }
+  Future<void> addQA(AuthQA authQA) async {
+    final sql = '''INSERT INTO authQAs
+    (
+      id,
+      type,
+      question,
+      options,
+      isDeleted
+    )
+    VALUES (?,?,?,?,?)''';
+    List<dynamic> params = [authQA.id, authQA.type, authQA.question, authQA.options, authQA.isDeleted ? 1 : 0];
+    final result = await db.rawInsert(sql, params);
+    databaseLog('Add qa', sql, null, result, params);
+  }
+  
+  Future qaBatchInsert(qAList) async{
+    final batch = db.batch();
+    qAList.forEach((qa) => batch.insert('authQAs', {
+      'type': qa.type,
+      'question': qa.question,
+      'options': qa.options,
+      'isDeleted': qa.isDeleted
+    }));
+    return await batch.commit();
+  }
+
+  Future deleteOldCallQA() async{
+    return  await db.rawDelete('DELETE FROM authQAs WHERE type = ? OR type = ? OR type = ?', [1, 2, 3]);
+  }
 
   Future<List> getTodos() async {
     final sql = '''SELECT * FROM todos
@@ -116,8 +131,9 @@ class SqlService {
     return todos;
   }
 
+ 
   Future<void> addTodo(Todo todo) async {
-    print('init insert');
+    //print('init insert');
     final sql = '''INSERT INTO todos
     (
       id,
@@ -129,7 +145,7 @@ class SqlService {
     VALUES (?,?,?,?,?)''';
     List<dynamic> params = [todo.id, todo.title, todo.description, todo.status, todo.isDeleted ? 1 : 0];
     final result = await db.rawInsert(sql, params);
-    print(result);
+    //print(result);
     databaseLog('Add todo', sql, null, result, params);
   }
   Future updateTodo(Todo todo) async{
