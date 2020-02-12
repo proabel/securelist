@@ -8,6 +8,7 @@ import 'package:sms/sms.dart';
 import './../models/authQA.dart';
 import 'dart:math';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
+import 'package:geocoder/geocoder.dart';
 
 class QuestionPage extends StatefulWidget{
   @override 
@@ -18,6 +19,7 @@ class QuestionPage extends StatefulWidget{
 
 class _questionPageState extends State{
   List questions = [];
+  bool appReady = false;
   Iterable<CallLogEntry> _callLog;
   SmsQuery query = new SmsQuery();
   final sqlService = SqlService();
@@ -47,20 +49,50 @@ class _questionPageState extends State{
     );
   }
   Future<Null> _initPlatformState() async {
+    print('initatoing location');
     bg.BackgroundGeolocation.onLocation((bg.Location location) {
-      print('[location] - $location');
+      //print('[location] - $location');
+      Map loc = {};
+      loc['lat'] = location.coords.latitude;
+      loc['long'] = location.coords.longitude;
+      loc['accuracy'] = location.coords.accuracy;
+      loc['timestamp'] = location.timestamp;
+      sqlService.addLocation(loc).then((res){
+
+      });
     });
 
     // Fired whenever the plugin changes motion-state (stationary->moving and vice-versa)
     bg.BackgroundGeolocation.onMotionChange((bg.Location location) {
-      print('[motionchange] - $location');
+       Map loc = {};
+      loc['lat'] = location.coords.latitude;
+      loc['lon'] = location.coords.longitude;
+      loc['accuracy'] = location.coords.accuracy;
+      loc['timestamp'] = location.timestamp;
+      sqlService.addLocation(loc).then((res){
+
+      });
     });
     
-    bg.BackgroundGeolocation.ready(bg.Config(
-      enableHeadless: true,    
-      stopOnTerminate: false,  
-      startOnBoot: true
-    ));
+    // Fired whenever the state of location-services changes.  Always fired at boot
+        bg.BackgroundGeolocation.onProviderChange((bg.ProviderChangeEvent event) {
+          print('[providerchange] - $event');
+        });
+
+      bg.BackgroundGeolocation.ready(bg.Config(
+          enableHeadless: true,
+          desiredAccuracy: bg.Config.DESIRED_ACCURACY_HIGH,
+          distanceFilter: 10.0,
+          stopOnTerminate: false,
+          startOnBoot: true,
+          debug: true,
+          logLevel: bg.Config.LOG_LEVEL_VERBOSE
+      )).then((bg.State state) {
+          if (!state.enabled) {
+            bg.BackgroundGeolocation.start();
+          }
+        
+      });
   }
 
   void initiateLogs() async{
@@ -164,8 +196,69 @@ class _questionPageState extends State{
         options.add({'answer': senders[i], 'isTrue': false});
       i++;
     }
-    return sqlService.addQA(AuthQA(type: 3, question: 'which sender sent you the last sms ?', options: jsonEncode(options), isDeleted: false));
+    sqlService.addQA(AuthQA(type: 3, question: 'which sender sent you the last sms ?', options: jsonEncode(options), isDeleted: false)).then((res){
+      setLocationQAs(){
+
+      }
+    });
     
+  }
+  Future setLocationQAs(){
+    List locs = [];
+    //get location data from sql
+    sqlService.getLocations().then((res){
+      locs = res.take(20);
+      if(res.length > 20){
+        //keep last 20
+        int i = 20;
+        List toDelete = [];
+        while(i < res.length){
+          toDelete.add(res.id);
+          i++;
+        }
+        sqlService.deleteBatchLocs(toDelete).then((res){
+          setLocQAs(locs);
+        });
+      }
+    });
+  }
+
+  Future setLocQAs(locs) {
+    
+    List locQAs = [];
+    locs.forEach((loc) async{
+      List options = [];
+      final coordinates = new Coordinates(1.10, 45.50);
+      final addresses = await Geocoder.local.findAddressesFromCoordinates(coordinates);
+      final first = addresses.first;
+      
+      String geoName = first.featureName + first.addressLine;
+      print('geoName $geoName');
+      if(loc.timestamp % 2 == 0){
+        options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc.timestamp).add(new Duration(hours: 2)).toString(), 'isTrue': false});
+        options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc.timestamp).add(new Duration(hours: 1)).toString(), 'isTrue': false});
+        options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc.timestamp).toString(), 'isTrue': false});
+        options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc.timestamp).subtract(new Duration(hours: 1)).toString(), 'isTrue': false});
+        
+      }
+      else{
+        options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc.timestamp).add(new Duration(hours: 1)).toString(), 'isTrue': false});
+        options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc.timestamp).toString(), 'isTrue': false});
+        options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc.timestamp).subtract(new Duration(hours: 1)).toString(), 'isTrue': false});
+        options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc.timestamp).subtract(new Duration(hours: 2)).toString(), 'isTrue': false});
+      }
+        
+      //sqlService.addQA(AuthQA(type: 1, question: 'At what time did ${log.name} called you', options: options, isDeleted: false));
+      locQAs.add(AuthQA(type: 4, question: 'At what time you were at $geoName', options: jsonEncode(options), isDeleted: false));
+      //print(AuthQA(type: 2, question: 'At what time did ${log.name} called you', options: options, isDeleted: false).toString());  
+        
+    });
+    sqlService.qaBatchInsert(locQAs).then((res){
+        // app ready
+    });
+    //sqlService.addQA(AuthQA(type: 4, question: 'At what time you were at ?', options: jsonEncode(options), isDeleted: false)).then((res){
+
+
   }
 
   Widget _buildQuestion(context){

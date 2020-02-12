@@ -47,9 +47,18 @@ class SqlService {
       status INTEGER,
       isDeleted BIT NOT NULL
     )''';
+    final createLocTable = '''CREATE TABLE locations
+    (
+      id INTEGER PRIMARY KEY autoincrement,
+      lat REAL,
+      lon REAL,
+      accuracy REAL,
+      timestamp TEXT
+    )''';
 
     await db.execute(createQATable).then((value){print('created table authQAs');});
     await db.execute(createToDoTable).then((value){print('created table todos');});
+    await db.execute(createLocTable).then((value){print('created table todos');});
   }
 
   Future<String> getDatabasePath(String dbName) async {
@@ -156,5 +165,31 @@ class SqlService {
   Future deleteTodo(id) async {
     final result = await db.rawDelete('DELETE FROM todos WHERE id = ?', [id]);
     return result;
+  }
+
+  Future getLocations() async{
+    final sql = '''SELECT * FROM locations''';
+    final data = await db.rawQuery(sql);
+    print('got locations $data');
+    return data;
+  }
+  Future addLocation(loc) async{
+    final sql = '''INSERT INTO locations
+    (
+      lat,
+      lon,
+      accuracy,
+      timestamp
+    )
+    VALUES (?,?,?,?)
+    ''';
+    List params = [loc['lat'], loc['lon'], loc['accuracy'], loc['timestamp'].toString()];
+    final result = await db.rawInsert(sql, params);
+  }
+
+  Future deleteBatchLocs(ids) async{
+    final batch = db.batch();
+    ids.forEach((id) => batch.delete('Test', where: 'id = ?', whereArgs: [id]));
+    return await batch.commit();
   }
 }

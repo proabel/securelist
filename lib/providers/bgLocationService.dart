@@ -40,13 +40,10 @@ class BgLocationService with ChangeNotifier {
           debug: true,
           logLevel: bg.Config.LOG_LEVEL_VERBOSE
       )).then((bg.State state) {
-        if (!state.enabled) {
-          ////
-          // 3.  Start the plugin.
-          //
+       
           print('starting loc plugin');
           bg.BackgroundGeolocation.start();
-        }
+        
       });
     }
 }
