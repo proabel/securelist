@@ -110,6 +110,7 @@ class SqlService {
     List<dynamic> params = [authQA.id, authQA.type, authQA.question, authQA.options, authQA.isDeleted ? 1 : 0];
     final result = await db.rawInsert(sql, params);
     databaseLog('Add qa', sql, null, result, params);
+    return result;
   }
   
   Future qaBatchInsert(qAList) async{
@@ -156,10 +157,12 @@ class SqlService {
     final result = await db.rawInsert(sql, params);
     //print(result);
     databaseLog('Add todo', sql, null, result, params);
+    return result;
   }
   Future updateTodo(Todo todo) async{
     final sql = '''UPDATE todos SET status = ? WHERE id = ?''';
     final result = await db.rawUpdate(sql, [todo.status, todo.id]);
+    return result;
   }
 
   Future deleteTodo(id) async {
@@ -170,7 +173,7 @@ class SqlService {
   Future getLocations() async{
     final sql = '''SELECT * FROM locations''';
     final data = await db.rawQuery(sql);
-    print('got locations $data');
+    //print('got locations $data');
     return data;
   }
   Future addLocation(loc) async{
@@ -185,11 +188,12 @@ class SqlService {
     ''';
     List params = [loc['lat'], loc['lon'], loc['accuracy'], loc['timestamp'].toString()];
     final result = await db.rawInsert(sql, params);
+    return result;
   }
 
   Future deleteBatchLocs(ids) async{
     final batch = db.batch();
-    ids.forEach((id) => batch.delete('Test', where: 'id = ?', whereArgs: [id]));
+    ids.forEach((id) => batch.delete('locations', where: 'id = ?', whereArgs: [id]));
     return await batch.commit();
   }
 }
