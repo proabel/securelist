@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:ffi';
+//import 'dart:html';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:call_log/call_log.dart';
-import 'package:securelist/models/option.dart';
+//import 'package:securelist/models/option.dart';
 import '../providers/sqlService.dart';
 import 'package:sms/sms.dart';
 import './../models/authQA.dart';
@@ -22,8 +22,12 @@ class QuestionPage extends StatefulWidget{
 
 class _questionPageState extends State{
   List questions = [];
-  final String ApiKey = 'AIzaSyDlqmKdlu5McjShx01U_XN8k22ut6reIOg';
+  final String ApiKey = 'AIzaSyCCF0Flkkkdo2nLRQ9cdOfqQIaA13YjH5U';
   bool appReady;
+  int questionType = 0;
+  String questionTxt = "";
+  String locAddress = "";
+  List optionsList = [];
   Iterable<CallLogEntry> _callLog;
   SmsQuery query = new SmsQuery();
   final sqlService = SqlService();
@@ -57,7 +61,7 @@ class _questionPageState extends State{
               ),
               Flexible(
                 flex: 2,
-                child:_buildQuestion(context)
+                child:_buildQuestion()
               )
             ],
           )
@@ -188,17 +192,51 @@ class _questionPageState extends State{
   void getQAs() async{
     //await initiateSms();
     print('get qa called');
-    sqlService.getQAs().then((res){
+    sqlService.getQAs().then((res) async{
       res.forEach((item){
         setState(() {
           questions.add(item);
         });
       });
-      setState(() {
-          appReady = true;
-      });
+      setQuestion();
+      // setState(() {
+      //     appReady = true;
+      // });
     });
   }
+  Future setQuestion() async{
+    final _random = new Random();
+    AuthQA question = questions[_random.nextInt(questions.length)];
+    String postfixStr = "";
+    if(question.type == 4){
+      postfixStr = await getGeoCode(question.extras);
+    }
+    setState(() {
+      questionTxt = question.question + " " +  postfixStr;
+      optionsList = jsonDecode(question.options);
+      questionType = question.type;
+      appReady = true;
+    });
+    
+  }
+
+  getGeoCode(coordsStr) async{
+    Map coords = jsonDecode(coordsStr);
+    String url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=' + coords['lat'].toString() + ',' + coords['lon'].toString() + '&key=' + ApiKey;
+    var response = await http.get(url);
+    
+    var places = jsonDecode(response.body);
+    String address = "";
+    int i = 0;
+    places['results'][0]['address_components'].forEach((place){
+      if(i <= 2){
+        address = i < 2 ? address : address + place['long_name'] + ', ';
+      }
+      i++;
+    });
+    return address;
+  }
+
   Future initiateSms() async{
     List<SmsMessage> messages = await query.getAllSms;
     List senders = [];
@@ -249,76 +287,78 @@ class _questionPageState extends State{
 
   void setLocQAs(locs) async{
     print('initiating loc qa for $locs');
-    if(locs.length > 0){
-      List locQAs = [];
-      locs.forEach((loc){
-        // final coordinates = new Coordinates(loc['lat'], loc['lon']);
-        //   final addresses = await Geocoder.local.findAddressesFromCoordinates(coordinates);
-        //   final first = addresses.first;
-          
-        //   String geoName = first.featureName + first.addressLine;
-        //   print('geoName $geoName');
-        
-        List options = [];
-        if(loc['lat'] != null && loc['lon'] != null){
-          // List<Placemark> placemark = await Geolocator().placemarkFromCoordinates(loc['lat'], loc['lon'], localeIdentifier: 'en_IN');
-          //   print('placemark');
-          //String url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=' + loc['lat'].toString() + ',' + loc['lon'].toString() + '&key=' + ApiKey;
-          //var response = await http.get(url);
-          
-          //var places = jsonDecode(response.body);
-          //String address = "";
-          // places['results'][0]['address_components'].forEach((place){
-          //   address = address + place['long_name'] + ',';
-          // });
-          if(new DateTime.now().millisecondsSinceEpoch % 2 == 0){
-            options.add({'answer': DateTime.parse(loc['timestamp']).add(new Duration(hours: 2)).toString(), 'isTrue': false});
-            options.add({'answer': DateTime.parse(loc['timestamp']).add(new Duration(hours: 1)).toString(), 'isTrue': false});
-            options.add({'answer': DateTime.parse(loc['timestamp']).toString(), 'isTrue': true});
-            options.add({'answer': DateTime.parse(loc['timestamp']).subtract(new Duration(hours: 1)).toString(), 'isTrue': false});
+    sqlService.deleteOldLOCQA().then((response){
+      if(locs.length > 0){
+        List locQAs = [];
+        locs.forEach((loc){
+          // final coordinates = new Coordinates(loc['lat'], loc['lon']);
+          //   final addresses = await Geocoder.local.findAddressesFromCoordinates(coordinates);
+          //   final first = addresses.first;
             
-          }
-          else{
-            options.add({'answer': DateTime.parse(loc['timestamp']).add(new Duration(hours: 1)).toString(), 'isTrue': false});
-            options.add({'answer': DateTime.parse(loc['timestamp']).toString(), 'isTrue': true});
-            options.add({'answer': DateTime.parse(loc['timestamp']).subtract(new Duration(hours: 1)).toString(), 'isTrue': false});
-            options.add({'answer': DateTime.parse(loc['timestamp']).subtract(new Duration(hours: 2)).toString(), 'isTrue': false});
-          }
+          //   String geoName = first.featureName + first.addressLine;
+          //   print('geoName $geoName');
+          
+          List options = [];
+          if(loc['lat'] != null && loc['lon'] != null){
+            // List<Placemark> placemark = await Geolocator().placemarkFromCoordinates(loc['lat'], loc['lon'], localeIdentifier: 'en_IN');
+            //   print('placemark');
+            //String url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=' + loc['lat'].toString() + ',' + loc['lon'].toString() + '&key=' + ApiKey;
+            //var response = await http.get(url);
             
-          //sqlService.addQA(AuthQA(type: 1, question: 'At what time did ${log.name} called you', options: options, isDeleted: false));
-          locQAs.add(AuthQA(type: 4, question: 'At what time you were at', options: jsonEncode(options), isDeleted: false, extras: jsonEncode({'lat':loc['lat'], 'lon':loc['lon']})));
-          return true;
-          //print(AuthQA(type: 2, question: 'At what time did ${log.name} called you', options: options, isDeleted: false).toString());  
-        }
-      });
-      print('list of locqas $locQAs');
-      sqlService.qaBatchInsert(locQAs).then((res){
-        print('finished inserting loc qas');
+            //var places = jsonDecode(response.body);
+            //String address = "";
+            // places['results'][0]['address_components'].forEach((place){
+            //   address = address + place['long_name'] + ',';
+            // });
+            if(new DateTime.now().millisecondsSinceEpoch % 2 == 0){
+              options.add({'answer': DateTime.parse(loc['timestamp']).add(new Duration(hours: 2)).toString(), 'isTrue': false});
+              options.add({'answer': DateTime.parse(loc['timestamp']).add(new Duration(hours: 1)).toString(), 'isTrue': false});
+              options.add({'answer': DateTime.parse(loc['timestamp']).toString(), 'isTrue': true});
+              options.add({'answer': DateTime.parse(loc['timestamp']).subtract(new Duration(hours: 1)).toString(), 'isTrue': false});
+              
+            }
+            else{
+              options.add({'answer': DateTime.parse(loc['timestamp']).add(new Duration(hours: 1)).toString(), 'isTrue': false});
+              options.add({'answer': DateTime.parse(loc['timestamp']).toString(), 'isTrue': true});
+              options.add({'answer': DateTime.parse(loc['timestamp']).subtract(new Duration(hours: 1)).toString(), 'isTrue': false});
+              options.add({'answer': DateTime.parse(loc['timestamp']).subtract(new Duration(hours: 2)).toString(), 'isTrue': false});
+            }
+              
+            //sqlService.addQA(AuthQA(type: 1, question: 'At what time did ${log.name} called you', options: options, isDeleted: false));
+            locQAs.add(AuthQA(type: 4, question: 'At what time you were at', options: jsonEncode(options), isDeleted: false, extras: jsonEncode({'lat':loc['lat'], 'lon':loc['lon']})));
+            return true;
+            //print(AuthQA(type: 2, question: 'At what time did ${log.name} called you', options: options, isDeleted: false).toString());  
+          }
+        });
+        print('list of locqas $locQAs');
+        sqlService.qaBatchInsert(locQAs).then((res){
+          print('finished inserting loc qas');
+          getQAs();
+            // app ready
+            
+        });
+      }else{
         getQAs();
-          // app ready
-          
-      });
-    }else{
-      getQAs();
-    }
+      }
+    });
     //sqlService.addQA(AuthQA(type: 4, question: 'At what time you were at ?', options: jsonEncode(options), isDeleted: false)).then((res){
 
 
   }
 
-  Widget _buildQuestion(context){
-    final _random = new Random();
-    AuthQA question = questions[_random.nextInt(questions.length)];
-    print(question.options);
-    List options = jsonDecode(question.options);
+  Widget _buildQuestion(){
+    // final _random = new Random();
+    // AuthQA question = questions[_random.nextInt(questions.length)];
+    // print(question.options);
+    // List options = jsonDecode(question.options);
     return Container(
       child: Column(
         children: [
-          question.type != 4 ?Text(question.question, style: TextStyle(fontSize:18),) : _buildLocQuestion(question),
+          Text(questionTxt, style: TextStyle(fontSize:18),),
           SizedBox(height:20),
           Container(
             height: 300,
-            child: _buildAnswer(context, options, question.type)
+            child: _buildAnswer(context)
           )
         ]
       ),
@@ -329,14 +369,15 @@ class _questionPageState extends State{
     
   }
 
-  Widget _buildAnswer(context, options, type){
-    if(type == 2 || type == 4){
-      var formatter = new DateFormat('HH:mm a');
-      if(type == 4){
+  Widget _buildAnswer(context){
+    var formatter = new DateFormat('jm');
+    if(questionType == 2 || questionType == 4){
+      //var formatter = new DateFormat('HH:mm a');
+      // if(questionType == 4){
         
-      }
+      // }
       return ListView.separated(
-        itemCount: options.length,
+        itemCount: optionsList.length,
         separatorBuilder: (BuildContext context, int index) => Divider(),
         itemBuilder: (context, index){
           return GestureDetector(
@@ -346,15 +387,15 @@ class _questionPageState extends State{
             //child: Text((options[index]['answer'])),
             child: Center(child: Container(
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-               child: Text(formatter.format(DateTime.parse(options[index]['answer'])), style: TextStyle(color:Colors.black54, fontSize: 20),))
+               child: Text(formatter.format(DateTime.parse(optionsList[index]['answer'])), style: TextStyle(color:Colors.black54, fontSize: 20),))
             ),
           );
         }
       );
     }else{
-      var formatter = new DateFormat('j:mm a');
+      
       return ListView.separated(
-        itemCount: options.length,
+        itemCount: optionsList.length,
         separatorBuilder: (BuildContext context, int index) => Divider(),
         itemBuilder: (context, index){
           return GestureDetector(
@@ -365,7 +406,7 @@ class _questionPageState extends State{
             child: Center(child: Container(
               
             padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Text(options[index]['answer'], style: TextStyle(color:Colors.black54, fontSize: 20),))),
+              child: Text(optionsList[index]['answer'], style: TextStyle(color:Colors.black54, fontSize: 20),))),
           );
         }
       );

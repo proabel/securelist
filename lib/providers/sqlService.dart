@@ -130,6 +130,39 @@ class SqlService {
   Future deleteOldCallQA() async{
     return  await db.rawDelete('DELETE FROM authQAs WHERE type = ? OR type = ? OR type = ?', [1, 2, 3]);
   }
+  Future deleteOldLOCQA() async{
+    int limit = 4;
+    final sql = '''SELECT * FROM authQAs WHERE type = 4''';
+    final data = await db.rawQuery(sql);
+    if(data.length > limit){
+      print('got ${data.length} rows for location');
+      int diff = data.length - limit;
+      //final newSql = 'DELETE FROM authQAs WHERE id IN (SELECT id FROM authQAs WHERE type = ? LIMIT ?)';
+
+      //return await db.rawQuery(newSql, [4, diff]);
+      //await db.rawDelete('DELETE FROM authQAs WHERE id IN (SELECT id FROM authQAs WHERE type = ? LIMIT ?)', [4, diff]);
+      final data1 = await db.rawQuery('SELECT id FROM authQAs WHERE type = 4 LIMIT ?', [diff]);
+      String toDelete = "(";
+      
+        data1.forEach((e){
+          if(toDelete == "(")
+            toDelete = toDelete + "${e['id']}";
+          else
+            toDelete = toDelete + ",${e['id']}";
+        });
+      
+      
+      toDelete = toDelete + ")";
+      print('got data1 $toDelete');
+      //return Future.value('done');
+
+      await db.rawQuery('DELETE FROM authQAs WHERE id IN $toDelete').then((value){
+        print('after delete $value');
+        return Future.value('done');
+      });
+      
+    }else return Future.value('done');
+  }
 
   Future<List> getTodos() async {
     final sql = '''SELECT * FROM todos
