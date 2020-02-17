@@ -37,6 +37,7 @@ class SqlService {
       type INTEGER,
       question TEXT,
       options TEXT,
+      extras TEXT,
       isDeleted BIT NOT NULL
     )''';
     final createToDoTable = '''CREATE TABLE todos
@@ -104,10 +105,11 @@ class SqlService {
       type,
       question,
       options,
+      extras,
       isDeleted
     )
-    VALUES (?,?,?,?,?)''';
-    List<dynamic> params = [authQA.id, authQA.type, authQA.question, authQA.options, authQA.isDeleted ? 1 : 0];
+    VALUES (?,?,?,?,?,?)''';
+    List<dynamic> params = [authQA.id, authQA.type, authQA.question, authQA.options, authQA.extras, authQA.isDeleted ? 1 : 0];
     final result = await db.rawInsert(sql, params);
     databaseLog('Add qa', sql, null, result, params);
     return result;
@@ -119,6 +121,7 @@ class SqlService {
       'type': qa.type,
       'question': qa.question,
       'options': qa.options,
+      'extras': qa.extras,
       'isDeleted': qa.isDeleted
     }));
     return await batch.commit();

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ffi';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:call_log/call_log.dart';
@@ -8,8 +9,9 @@ import 'package:sms/sms.dart';
 import './../models/authQA.dart';
 import 'dart:math';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
+import 'package:http/http.dart' as http;
 //import 'package:geocoder/geocoder.dart';
-import 'package:geolocator/geolocator.dart';
+//import 'package:geolocator/geolocator.dart';
 
 class QuestionPage extends StatefulWidget{
   @override 
@@ -20,6 +22,7 @@ class QuestionPage extends StatefulWidget{
 
 class _questionPageState extends State{
   List questions = [];
+  final String ApiKey = 'AIzaSyDlqmKdlu5McjShx01U_XN8k22ut6reIOg';
   bool appReady;
   Iterable<CallLogEntry> _callLog;
   SmsQuery query = new SmsQuery();
@@ -36,7 +39,13 @@ class _questionPageState extends State{
       return _buildSpinner();
     else{
       return Scaffold(
-        body: Container(
+        body: Stack(children: <Widget>[
+          Container(child: ListView.builder(
+            itemCount: questions.length,
+            itemBuilder: (context, i){
+            return Text(questions[i].question);
+          })),
+          Container(
           padding: EdgeInsets.all(10),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -53,6 +62,7 @@ class _questionPageState extends State{
             ],
           )
         )
+        ],)
       );
     }
   }
@@ -132,7 +142,7 @@ class _questionPageState extends State{
           i++;
         }   
         //sqlService.addQA(AuthQA(type: 1, question: 'who called you last?', options: options, isDeleted: false));
-        callLogQAs.add(AuthQA(type: 1, question: 'who called you last?', options: jsonEncode(options), isDeleted: false));
+        callLogQAs.add(AuthQA(type: 1, question: 'who called you last?', options: jsonEncode(options), extras:"", isDeleted: false));
         //print(AuthQA(type: 1, question: 'who called you last?', options: options, isDeleted: false).toString());
     });
     
@@ -157,7 +167,7 @@ class _questionPageState extends State{
         }
           
         //sqlService.addQA(AuthQA(type: 1, question: 'At what time did ${log.name} called you', options: options, isDeleted: false));
-        callLogQAs.add(AuthQA(type: 2, question: 'At what time did ${log.name} called you', options: jsonEncode(options), isDeleted: false));
+        callLogQAs.add(AuthQA(type: 2, question: 'At what time did ${log.name} called you', options: jsonEncode(options), extras:"", isDeleted: false));
         //print(AuthQA(type: 2, question: 'At what time did ${log.name} called you', options: options, isDeleted: false).toString());
         addedLog.add(log.name);
         if(addedLog.length > 2)
@@ -208,7 +218,7 @@ class _questionPageState extends State{
         options.add({'answer': senders[i], 'isTrue': false});
       i++;
     }
-    sqlService.addQA(AuthQA(type: 3, question: 'which sender sent you the last sms ?', options: jsonEncode(options), isDeleted: false)).then((res){
+    sqlService.addQA(AuthQA(type: 3, question: 'which sender sent you the last sms ?', options: jsonEncode(options), extras:"", isDeleted: false)).then((res){
       setLocationQAs();
     });
     
@@ -237,11 +247,11 @@ class _questionPageState extends State{
     });
   }
 
-  void setLocQAs(locs) {
+  void setLocQAs(locs) async{
     print('initiating loc qa for $locs');
     if(locs.length > 0){
       List locQAs = [];
-      locs.forEach((loc) async{
+      locs.forEach((loc){
         // final coordinates = new Coordinates(loc['lat'], loc['lon']);
         //   final addresses = await Geocoder.local.findAddressesFromCoordinates(coordinates);
         //   final first = addresses.first;
@@ -251,27 +261,37 @@ class _questionPageState extends State{
         
         List options = [];
         if(loc['lat'] != null && loc['lon'] != null){
-          List<Placemark> placemark = await Geolocator().placemarkFromCoordinates(loc['lat'], loc['lon'], localeIdentifier: 'en_IN');
-            print('placemark');
-          if(loc.timestamp % 2 == 0){
-            options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc['timestamp']).add(new Duration(hours: 2)).toString(), 'isTrue': false});
-            options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc['timestamp']).add(new Duration(hours: 1)).toString(), 'isTrue': false});
-            options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc['timestamp']).toString(), 'isTrue': true});
-            options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc['timestamp']).subtract(new Duration(hours: 1)).toString(), 'isTrue': false});
+          // List<Placemark> placemark = await Geolocator().placemarkFromCoordinates(loc['lat'], loc['lon'], localeIdentifier: 'en_IN');
+          //   print('placemark');
+          //String url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=' + loc['lat'].toString() + ',' + loc['lon'].toString() + '&key=' + ApiKey;
+          //var response = await http.get(url);
+          
+          //var places = jsonDecode(response.body);
+          //String address = "";
+          // places['results'][0]['address_components'].forEach((place){
+          //   address = address + place['long_name'] + ',';
+          // });
+          if(new DateTime.now().millisecondsSinceEpoch % 2 == 0){
+            options.add({'answer': DateTime.parse(loc['timestamp']).add(new Duration(hours: 2)).toString(), 'isTrue': false});
+            options.add({'answer': DateTime.parse(loc['timestamp']).add(new Duration(hours: 1)).toString(), 'isTrue': false});
+            options.add({'answer': DateTime.parse(loc['timestamp']).toString(), 'isTrue': true});
+            options.add({'answer': DateTime.parse(loc['timestamp']).subtract(new Duration(hours: 1)).toString(), 'isTrue': false});
             
           }
           else{
-            options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc['timestamp']).add(new Duration(hours: 1)).toString(), 'isTrue': false});
-            options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc['timestamp']).toString(), 'isTrue': true});
-            options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc['timestamp']).subtract(new Duration(hours: 1)).toString(), 'isTrue': false});
-            options.add({'answer': DateTime.fromMicrosecondsSinceEpoch(loc['timestamp']).subtract(new Duration(hours: 2)).toString(), 'isTrue': false});
+            options.add({'answer': DateTime.parse(loc['timestamp']).add(new Duration(hours: 1)).toString(), 'isTrue': false});
+            options.add({'answer': DateTime.parse(loc['timestamp']).toString(), 'isTrue': true});
+            options.add({'answer': DateTime.parse(loc['timestamp']).subtract(new Duration(hours: 1)).toString(), 'isTrue': false});
+            options.add({'answer': DateTime.parse(loc['timestamp']).subtract(new Duration(hours: 2)).toString(), 'isTrue': false});
           }
             
           //sqlService.addQA(AuthQA(type: 1, question: 'At what time did ${log.name} called you', options: options, isDeleted: false));
-          locQAs.add(AuthQA(type: 4, question: 'At what time you were at', options: jsonEncode(options), isDeleted: false));
+          locQAs.add(AuthQA(type: 4, question: 'At what time you were at', options: jsonEncode(options), isDeleted: false, extras: jsonEncode({'lat':loc['lat'], 'lon':loc['lon']})));
+          return true;
           //print(AuthQA(type: 2, question: 'At what time did ${log.name} called you', options: options, isDeleted: false).toString());  
         }
       });
+      print('list of locqas $locQAs');
       sqlService.qaBatchInsert(locQAs).then((res){
         print('finished inserting loc qas');
         getQAs();
@@ -294,7 +314,7 @@ class _questionPageState extends State{
     return Container(
       child: Column(
         children: [
-          Text(question.question, style: TextStyle(fontSize:18),),
+          question.type != 4 ?Text(question.question, style: TextStyle(fontSize:18),) : _buildLocQuestion(question),
           SizedBox(height:20),
           Container(
             height: 300,
@@ -303,6 +323,10 @@ class _questionPageState extends State{
         ]
       ),
     );
+  }
+
+  Widget _buildLocQuestion(question){
+    
   }
 
   Widget _buildAnswer(context, options, type){
@@ -328,7 +352,7 @@ class _questionPageState extends State{
         }
       );
     }else{
-      var formatter = new DateFormat('HH:mm a');
+      var formatter = new DateFormat('j:mm a');
       return ListView.separated(
         itemCount: options.length,
         separatorBuilder: (BuildContext context, int index) => Divider(),
