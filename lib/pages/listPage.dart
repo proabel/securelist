@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:securelist/providers/appState.dart';
 import 'package:securelist/providers/bgLocationService.dart';
@@ -40,7 +41,7 @@ class _listPageState extends State<ListPage>{
           GestureDetector(
             onTap: (){
               //appState.setAuth(false);
-              Navigator.pushReplacementNamed(context, '/question');
+              SystemChannels.platform.invokeMethod('SystemNavigator.pop');
             },
             child: Icon(Icons.power_settings_new)
           )

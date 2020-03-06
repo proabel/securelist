@@ -1,5 +1,6 @@
 import 'dart:convert';
 //import 'dart:html';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:call_log/call_log.dart';
@@ -29,13 +30,20 @@ class _questionPageState extends State{
   String locAddress = "";
   List optionsList = [];
   Iterable<CallLogEntry> _callLog;
+  int noofAttempts;
+  bool showTransition;
+  bool openLock = false;
   SmsQuery query = new SmsQuery();
   final sqlService = SqlService();
   void initState(){
     appReady = false;
+    openLock = false;
+    showTransition = false;
+    noofAttempts = 3;
     super.initState();
     initiateLogs();
     _initPlatformState();
+
   }
   @override
   Widget build(BuildContext context){
@@ -44,31 +52,72 @@ class _questionPageState extends State{
     else{
       return Scaffold(
         body: Stack(children: <Widget>[
-          Container(child: ListView.builder(
-            itemCount: questions.length,
-            itemBuilder: (context, i){
-            return Text(questions[i].question);
-          })),
-          Container(
-          padding: EdgeInsets.all(10),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: <Widget>[
-              Flexible( 
-                child: Center(
-                  child: Icon(Icons.lock_outline, size: 100, color: Colors.black45),
-                ),
-              ),
-              Flexible(
-                flex: 2,
-                child:_buildQuestion()
-              )
-            ],
-          )
-        )
+          // Container(child: ListView.builder(
+          //   itemCount: questions.length,
+          //   itemBuilder: (context, i){
+          //   return Text(questions[i].question);
+          // })),
+          _buildAttempts(),
+          _buildBasicLayout(),
+          _buildTransition()
         ],)
       );
     }
+  }
+  Widget _buildBasicLayout(){
+    if(!showTransition){
+      return Container(
+        padding: EdgeInsets.all(10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: <Widget>[
+            Flexible( 
+              child: Center(
+                child: Icon(Icons.lock_outline, size: 100, color: Colors.blueGrey),
+              ),
+            ),
+            Flexible(
+              flex: 2,
+              child:_buildQuestion()
+            )
+          ],
+        )
+      );
+    }else{
+      return SizedBox.shrink();
+    }
+  }
+  Widget _buildTransition(){
+    if(showTransition)
+      return Center(child:Container(
+        child: openLock ? Icon(Icons.check_circle, size: 150, color: Colors.lightGreen,) : Icon(Icons.mood_bad, size: 150, color: Colors.redAccent,),
+      ));
+    else
+      return SizedBox.shrink();
+  }
+  Widget _buildAttempts(){
+    if(!showTransition){
+      return Container(
+        padding: EdgeInsets.all(10),
+        child:Align(
+          alignment: Alignment.bottomCenter,
+          child: noofAttempts > 2 ? SizedBox.shrink() : Text('You have $noofAttempts attempts left', textAlign: TextAlign.center, style: TextStyle(color:Colors.deepOrange),),
+        ),
+      );
+    }else{
+      return SizedBox.shrink();
+    }
+  }
+  Future goWithTransition(success){
+    setState(() {
+      showTransition = true;
+    });
+    return Future.delayed(const Duration(seconds:3), (){
+      if(success)
+        Navigator.pushReplacementNamed(context, '/list');
+      else
+        SystemChannels.platform.invokeMethod('SystemNavigator.pop');
+    });
   }
   Future<Null> _initPlatformState() async {
     print('initatoing location');
@@ -135,8 +184,8 @@ class _questionPageState extends State{
     }
     //print(randomNames);
     callLog.take(1).forEach((log){
-        int i = 0;
-        List options = [];
+        int i = 1;
+        List options = [{'answer': log.name, 'isTrue': true}];
         while(i < 10 && i < randomNames.length){
           if(randomNames[i] != log.name){
             options.add({'answer':randomNames[i], 'isTrue': false});
@@ -189,52 +238,62 @@ class _questionPageState extends State{
     });
 
   }
-  void getQAs() async{
+  void getQAs() {
     //await initiateSms();
     print('get qa called');
-    sqlService.getQAs().then((res) async{
-      res.forEach((item){
-        setState(() {
-          questions.add(item);
-        });
-      });
-      setQuestion();
-      // setState(() {
-      //     appReady = true;
+    sqlService.getQAs().then((res) {
+      // res.forEach((item){
+      //   setState(() {
+      //     questions.add(item);
+      //   });
       // });
+      questions = [];
+      questions = res;
+      setQuestion();
     });
   }
   Future setQuestion() async{
-    final _random = new Random();
+    print('got ${questions.length} questions');
+    Random _random = new Random();
     AuthQA question = questions[_random.nextInt(questions.length)];
+    //AuthQA question = questions[0];
     String postfixStr = "";
     if(question.type == 4){
       postfixStr = await getGeoCode(question.extras);
     }
     setState(() {
-      questionTxt = question.question + " " +  postfixStr;
+      if(postfixStr != null)
+        questionTxt = question.question + " " +  postfixStr;
+      else
+        questionTxt = question.question;
       optionsList = jsonDecode(question.options);
       questionType = question.type;
       appReady = true;
+
+      print(optionsList);
     });
     
   }
 
   getGeoCode(coordsStr) async{
     Map coords = jsonDecode(coordsStr);
+    print('getting coords for ${coords['lat'].toString()} / ${coords['lon'].toString()} ');
     String url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=' + coords['lat'].toString() + ',' + coords['lon'].toString() + '&key=' + ApiKey;
     var response = await http.get(url);
-    
-    var places = jsonDecode(response.body);
-    String address = "";
-    int i = 0;
-    places['results'][0]['address_components'].forEach((place){
-      if(i <= 2){
-        address = i < 2 ? address : address + place['long_name'] + ', ';
-      }
-      i++;
-    });
-    return address;
+    if(response.body != null){
+      var places = jsonDecode(response.body);
+      String address = "";
+      int i = 0;
+      places['results'][0]['address_components'].forEach((place){
+        if(i <= 2){
+          address = i < 2 ? address : address + place['long_name'] + ', ';
+        }
+        i++;
+      });
+      return address;
+    }else{
+      return coords['lat'].toString() + coords['lon'].toString();
+    }
   }
 
   Future initiateSms() async{
@@ -263,31 +322,16 @@ class _questionPageState extends State{
   }
   void setLocationQAs(){
     print('get locations');
-    Iterable locs = [];
     //get location data from sql
     sqlService.getLocations().then((res){
-      locs = res.take(20);
-      if(res.length > 20){
-        //keep last 20
-        int i = 20;
-        List toDelete = [];
-        while(i < res.length){
-          //Map data = jsonDecode(res[i]);
-          toDelete.add(res[i]['id']);
-          i++;
-        }
-        sqlService.deleteBatchLocs(toDelete).then((res){
-          setLocQAs(locs);
-        });
-      }else{
-        setLocQAs(locs);
-      }
+        print('got from loc db $res');
+        setLocQAs(res);
     });
   }
 
   void setLocQAs(locs) async{
     print('initiating loc qa for $locs');
-    sqlService.deleteOldLOCQA().then((response){
+    //sqlService.deleteOldLOCQA().then((response){
       if(locs.length > 0){
         List locQAs = [];
         locs.forEach((loc){
@@ -326,7 +370,6 @@ class _questionPageState extends State{
               
             //sqlService.addQA(AuthQA(type: 1, question: 'At what time did ${log.name} called you', options: options, isDeleted: false));
             locQAs.add(AuthQA(type: 4, question: 'At what time you were at', options: jsonEncode(options), isDeleted: false, extras: jsonEncode({'lat':loc['lat'], 'lon':loc['lon']})));
-            return true;
             //print(AuthQA(type: 2, question: 'At what time did ${log.name} called you', options: options, isDeleted: false).toString());  
           }
         });
@@ -340,7 +383,7 @@ class _questionPageState extends State{
       }else{
         getQAs();
       }
-    });
+    //});
     //sqlService.addQA(AuthQA(type: 4, question: 'At what time you were at ?', options: jsonEncode(options), isDeleted: false)).then((res){
 
 
@@ -382,7 +425,22 @@ class _questionPageState extends State{
         itemBuilder: (context, index){
           return GestureDetector(
             onTap: (){
-
+              if(optionsList[index]["isTrue"]){
+                  setState(() {
+                    openLock = true;
+                  });
+                  goWithTransition(true);
+                }else{
+                  if(noofAttempts == 1)
+                      goWithTransition(false);
+                  else{
+                    setState(() {
+                      noofAttempts--;
+                    });
+                    setQuestion();
+                  }
+                  
+                }
             },
             //child: Text((options[index]['answer'])),
             child: Center(child: Container(
@@ -398,15 +456,31 @@ class _questionPageState extends State{
         itemCount: optionsList.length,
         separatorBuilder: (BuildContext context, int index) => Divider(),
         itemBuilder: (context, index){
+          String answer = optionsList[index]['answer'] == null ? 'unknown' : optionsList[index]['answer'];
           return GestureDetector(
               onTap: (){
-
+                if(optionsList[index]["isTrue"]){
+                  setState(() {
+                    openLock = true;
+                  });
+                  goWithTransition(true);
+                }else{
+                  if(noofAttempts == 1)
+                      goWithTransition(false);
+                  else{
+                    setState(() {
+                      noofAttempts--;
+                    });
+                    setQuestion();
+                  }
+                  
+                }
               },
             //child: Text((options[index]['answer'])),
             child: Center(child: Container(
               
             padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Text(optionsList[index]['answer'], style: TextStyle(color:Colors.black54, fontSize: 20),))),
+              child: Text(answer, style: TextStyle(color:Colors.black54, fontSize: 20),))),
           );
         }
       );

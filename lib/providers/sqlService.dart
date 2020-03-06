@@ -128,7 +128,7 @@ class SqlService {
   }
 
   Future deleteOldCallQA() async{
-    return  await db.rawDelete('DELETE FROM authQAs WHERE type = ? OR type = ? OR type = ?', [1, 2, 3]);
+    return  await db.rawDelete('DELETE FROM authQAs');
   }
   Future deleteOldLOCQA() async{
     int limit = 4;
@@ -141,7 +141,17 @@ class SqlService {
 
       //return await db.rawQuery(newSql, [4, diff]);
       //await db.rawDelete('DELETE FROM authQAs WHERE id IN (SELECT id FROM authQAs WHERE type = ? LIMIT ?)', [4, diff]);
-      final data1 = await db.rawQuery('SELECT id FROM authQAs WHERE type = 4 LIMIT ?', [diff]);
+      final data1 = await db.rawQuery('SELECT id FROM authQAs WHERE type = 4 LIMIT ? ', [diff]); 
+      String whereStr = "id IN (";
+      List idToDelete = [];
+      // data1.forEach((item) {
+      //   idToDelete.add(item['id']);
+      //   if(whereStr == "id IN (")
+      //     whereStr = whereStr + "?";
+      //   else
+      //     whereStr = whereStr + ",?";
+      // });
+      // whereStr = whereStr + ")";
       String toDelete = "(";
       
         data1.forEach((e){
@@ -153,13 +163,17 @@ class SqlService {
       
       
       toDelete = toDelete + ")";
-      print('got data1 $toDelete');
+      // print('got todelete $toDelete');
       //return Future.value('done');
-
-      await db.rawQuery('DELETE FROM authQAs WHERE id IN $toDelete').then((value){
-        print('after delete $value');
-        return Future.value('done');
-      });
+      print('to delete $toDelete');
+      // return await db.delete('authQAs', where: whereStr, whereArgs: idToDelete).then((response){
+      //   print('deleted $response');
+      // });
+      // return await db.rawQuery('UPDATE FROM authQAs WHERE id IN $toDelete').then((value){
+      //   print('after delete $value');
+        
+      // });
+      return await db.rawUpdate('UPDATE authQAs SET isDeleted = 1 WHERE id IN $toDelete');
       
     }else return Future.value('done');
   }
@@ -207,7 +221,7 @@ class SqlService {
   }
 
   Future getLocations() async{
-    final sql = '''SELECT * FROM locations''';
+    final sql = '''SELECT * FROM locations ORDER BY id DESC LIMIT 4''';
     final data = await db.rawQuery(sql);
     //print('got locations $data');
     return data;
